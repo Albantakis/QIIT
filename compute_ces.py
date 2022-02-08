@@ -27,8 +27,10 @@ def evolve_mpart_2qubit(m_rho, ind_m, oper, direction, ent_partition = None):
     #rho_m gets extended by rho_mm and then evolved
     if ind_m == (0,):
         m_rho = tensor(m_rho, rho_mm)
+        ent_partition = list(combinations(range(len(m_rho.dims[0])), 1)) #rho_mm breaks entanglement
     elif ind_m == (1,):
-        m_rho = tensor(rho_mm, m_rho)               
+        m_rho = tensor(rho_mm, m_rho)
+        ent_partition = list(combinations(range(len(m_rho.dims[0])), 1)) #rho_mm breaks entanglement
     # evolve
     p_rho = evolve(m_rho, oper, direction)
 
@@ -73,7 +75,8 @@ def find_mip(rho_m, ind_m, rho_p, ind_p, oper, direction = 'effect', ent_partiti
         else:
             rho_p_partitioned = p_rho_parts[0][0]
         
-        # print(p_rho_parts)
+        # print(ind_m, ind_p)
+        # print(rho_p)
         # print(rho_p_partitioned)
         phi, state = intrinsic_difference(rho_p, rho_p_partitioned)
 
