@@ -101,7 +101,7 @@ def intrinsic_difference(rho, sigma, base=2, sparse=False, tol=1e-12, debug = Fa
     # of sigma overlaps with support of rho.
     P = abs(inner(rvecs, conj(svecs))) ** 2
     if (rvals >= tol) @ (P >= tol) @ (svals < tol):
-        return inf
+        return inf, None
     # Avoid -inf from log(0) -- these terms will be multiplied by zero later
     # anyway
     svals[abs(svals) < tol] = 1

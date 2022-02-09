@@ -1,6 +1,5 @@
 # utils.py
 
-
 # General
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def evolve(rho, oper, direction):
@@ -14,4 +13,10 @@ def evolve(rho, oper, direction):
     return rho_out
 
 #def permute_qbit_order(qtensor, current_order, new_order):
-    
+    # ---> there is already a permute function for Qobj in QuTip!
+
+# Diagonalize matrix
+def diagonalize_matrix(rho):
+    _, evecs = rho.eigenstates()
+    rho_D = rho.transform(evecs)
+    return rho_D, evecs
