@@ -70,7 +70,7 @@ def find_mip(rho_m, ind_m, rho_p, ind_p, oper, direction = 'effect', ent_partiti
                     p_rho_parts.append((p_rho, part.purview))
 
         if len(p_rho_parts) > 1:
-            sorted(p_rho_parts, key=lambda x: x[1])
+            p_rho_parts = sorted(p_rho_parts, key=lambda x: x[1])
             rho_p_partitioned = tensor([p[0] for p in p_rho_parts])
         else:
             rho_p_partitioned = p_rho_parts[0][0]
