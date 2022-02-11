@@ -130,4 +130,4 @@ def intrinsic_difference(rho, sigma, base=2, sparse=False, tol=1e-12, debug = Fa
     
     # the quantum relative entropy is guaranteed to be >= 0, so we clamp the
     # calculated value to 0 to avoid small violations of the lower bound.
-    return around(max(0, QID), 12), max_vecs
+    return around(max(0, QID), 6), max_vecs

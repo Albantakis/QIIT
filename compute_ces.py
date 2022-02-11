@@ -8,7 +8,10 @@ from intrinsic_difference import intrinsic_difference
 
 rho_mm = Qobj([[0.5, 0.],[0., 0.5]])
 
-                  
+
+# cause and effect repertoires 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 def decorrelate_rho_p(rho_p, ent_partition):
     # only works for 2 qubits, needs reordering for more
     # ent_partition is expected to be sorted, for 2 qubits it is either [(0,1)] 
@@ -22,7 +25,7 @@ def decorrelate_rho_p(rho_p, ent_partition):
     rho_p_product = tensor(p_rho_parts)
     return rho_p_product
 
-def evolve_mpart_2qubit(m_rho, ind_m, oper, direction):
+def evolve_mpart_2qubit_effect(m_rho, ind_m, oper):
     #this only works for 2 qubit systems
     #rho_m gets extended by rho_mm and then evolved
     if ind_m == (0,):
@@ -31,13 +34,40 @@ def evolve_mpart_2qubit(m_rho, ind_m, oper, direction):
         m_rho = tensor(rho_mm, m_rho)
         
     # evolve
-    p_rho = evolve(m_rho, oper, direction)
+    p_rho = evolve(m_rho, oper, direction = 'effect')
 
     if entanglement_check_2qubit(p_rho) is False:
         ent_partition = list(combinations(range(len(m_rho.dims[0])), 1))
         p_rho = decorrelate_rho_p(p_rho, ent_partition)
+    
+    return m_rho, p_rho
+
+
+def evolve_mpart_2qubit_cause(m_rho, ind_m, oper):
+    #this only works for 2 qubit systems
+    #rho_m gets extended by rho_mm and then evolved
+    if ind_m == (0,):
+        m_rho = tensor(m_rho, rho_mm)
+    elif ind_m == (1,):
+        m_rho = tensor(rho_mm, m_rho)
+        
+    if entanglement_check_2qubit(m_rho) is False:
+        m_rho_0 = tensor(m_rho.ptrace(0), rho_mm)
+        m_rho_1 = tensor(rho_mm, m_rho.ptrace(1))
+        p_rho_m0 = evolve(m_rho_0, oper, direction='cause')
+        p_rho_m1 = evolve(m_rho_1, oper, direction='cause')
+        p_rho = (p_rho_m0 * p_rho_m1).unit()
+
+    else:
+        p_rho = evolve(m_rho, oper, direction='cause')
 
     return m_rho, p_rho
+
+def evolve_mpart_2qubit(m_rho, ind_m, oper, direction):
+    if direction == 'effect':
+        return evolve_mpart_2qubit_effect(m_rho, ind_m, oper)
+    else: 
+        return evolve_mpart_2qubit_cause(m_rho, ind_m, oper)
 
 
 # find mip (for a mechanism purview pair)
