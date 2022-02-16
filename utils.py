@@ -1,5 +1,6 @@
 # utils.py
 from qutip import partial_transpose, Qobj
+from itertools import combinations
 
 # General
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -27,3 +28,41 @@ def entanglement_check_2qubit(rho, tol=1e-12):
     evals, _ = rho_pt.eigenstates()
     evals[abs(evals) < tol] = 0
     return any(evals < 0)
+
+
+def entanglement_check_3qubit(rho, tol=1e-12):
+    masks = ([1,0,0], [0,1,0], [0,0,1])
+    entangled = True
+    for mask in masks:
+        rho_pt = partial_transpose(rho, mask)
+        evals, _ = rho_pt.eigenstates()
+        evals[abs(evals) < tol] = 0
+        entangled = entangled * any(evals < 0)
+
+    return entangled
+
+def entanglement_partition(rho):
+    # Note: for 3 qubits the Peres-Horodecki criterion is only a necessary condition
+    # a negative partial trace is sufficient for entanglement, but a positive partial trace
+    # could still be entangled. This means we might miss some forms of entanglement.
+    # (see Bennett et al., 1999, Unextendible product bases and bound entanglement)
+    n_qubits = len(rho.dims[0])
+    
+    # default completely separable
+    ent_partition = list(combinations(range(n_qubits), 1))
+    
+    if n_qubits == 2:
+        if entanglement_check_2qubit(rho):
+            ent_partition = [tuple(range(n_qubits))]    
+    else:
+    # 3 qubits
+        if entanglement_check_3qubit(rho):
+            ent_partition = [tuple(range(n_qubits))]
+        else:
+            for sub2 in combinations(range(n_qubits), 2):
+                if entanglement_check_2qubit(rho.ptrace(sub2)):
+                    ent_partition = [tuple(set(range(n_qubits))-set(sub2)), sub2]
+                    # this should only be true for one subset
+                    return ent_partition
+
+    return ent_partition
