@@ -1,6 +1,7 @@
 # utils.py
-from qutip import partial_transpose, Qobj
+from qutip import partial_transpose, Qobj, tensor
 from itertools import combinations
+from numpy import argsort
 
 # General
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -16,6 +17,15 @@ def evolve(rho, oper, direction):
 
 #def permute_qbit_order(qtensor, current_order, new_order):
     # ---> there is already a permute function for Qobj in QuTip!
+
+def sort_tensor(rho, partial_indices):
+    indices = []
+    for i in partial_indices:
+        indices.extend(list(i))
+
+    sort_index = argsort(indices)
+
+    return rho.permute(sort_index)
 
 # Diagonalize matrix
 def diagonalize_matrix(rho):
@@ -66,3 +76,14 @@ def entanglement_partition(rho):
                     return ent_partition
 
     return ent_partition
+
+
+def decorrelate_rho(rho, ent_partition): 
+    p_rho_parts = []
+    for part in ent_partition:
+        p_rho = rho.ptrace(list(part))
+        p_rho_parts.append(p_rho)
+
+    rho_p_product = tensor(p_rho_parts)
+
+    return sort_tensor(rho_p_product, ent_partition)

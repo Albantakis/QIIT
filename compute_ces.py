@@ -3,7 +3,7 @@
 import pyphi
 from qutip import Qobj, tensor
 from itertools import combinations
-from utils import entanglement_check_2qubit, evolve
+from utils import entanglement_check_2qubit, evolve, decorrelate_rho, sort_tensor, entanglement_partition
 from intrinsic_difference import intrinsic_difference
 
 rho_mm = Qobj([[0.5, 0.],[0., 0.5]])
@@ -12,40 +12,37 @@ rho_mm = Qobj([[0.5, 0.],[0., 0.5]])
 # cause and effect repertoires 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def decorrelate_rho_p(rho_p, ent_partition):
-    # only works for 2 qubits, needs reordering for more
-    # ent_partition is expected to be sorted, for 2 qubits it is either [(0,1)] 
-    # in which case nothing is done, or [(0,), (1,)], in which case rho_p becomes 
-    # the product distribution
-    p_rho_parts = []
-    for part in ent_partition:
-        p_rho = rho_p.ptrace(list(part))
-        p_rho_parts.append(p_rho)
-
-    rho_p_product = tensor(p_rho_parts)
-    return rho_p_product
-
 def evolve_mpart_2qubit_effect(m_rho, ind_m, oper):
     #this only works for 2 qubit systems
     #rho_m gets extended by rho_mm and then evolved
-    if ind_m == (0,):
-        m_rho = tensor(m_rho, rho_mm)
-    elif ind_m == (1,):
-        m_rho = tensor(rho_mm, m_rho)
+    system_size = len(oper.dims[0])
+    mech_size = len(ind_m)
+
+    if mech_size < system_size:
+        parts = [m_rho]
+        for mm in range(system_size-mech_size):
+            parts.append(rho_mm) 
+        
+        parts_ind = [ind_m, tuple(set(range(system_size))-set(ind_m))]
+        print(parts_ind)
+        m_rho = sort_tensor(tensor(parts), parts_ind)
         
     # evolve
     p_rho = evolve(m_rho, oper, direction = 'effect')
 
-    if entanglement_check_2qubit(p_rho) is False:
-        ent_partition = list(combinations(range(len(m_rho.dims[0])), 1))
-        p_rho = decorrelate_rho_p(p_rho, ent_partition)
+    ent_partition = entanglement_partition(p_rho)
     
+    if len(entanglement_partition) > 1:
+        p_rho = decorrelate_rho(p_rho, ent_partition)
+    #vvv
     return m_rho, p_rho
 
 
 def evolve_mpart_2qubit_cause(m_rho, ind_m, oper):
     #this only works for 2 qubit systems
     #rho_m gets extended by rho_mm and then evolved
+    system_size = len(oper.dims[0])
+
     if ind_m == (0,):
         m_rho = tensor(m_rho, rho_mm)
     elif ind_m == (1,):
@@ -63,7 +60,7 @@ def evolve_mpart_2qubit_cause(m_rho, ind_m, oper):
 
     return m_rho, p_rho
 
-def evolve_mpart_2qubit(m_rho, ind_m, oper, direction):
+def evolve_mpart(m_rho, ind_m, oper, direction):
     if direction == 'effect':
         return evolve_mpart_2qubit_effect(m_rho, ind_m, oper)
     else: 
@@ -161,7 +158,7 @@ def compute_ces(rho_maxm, oper, direction = 'effect'):
     for mechanism in mechanisms:
         print('m: ', mechanism)
         m_rho = rho_maxm.ptrace(list(mechanism))
-        rho_m, rho_maxp = evolve_mpart_2qubit(m_rho, mechanism, oper, direction)
+        rho_m, rho_maxp = evolve_mpart(m_rho, mechanism, oper, direction)
         phi_max, max_mip, max_state, max_purview = find_mice(rho_m, mechanism, rho_maxp, oper, direction)
         if phi_max > 0:
             distinction = {'mech': mechanism, 'purview': max_purview, 'phi': phi_max, 'mip': max_mip, 'state': max_state}
