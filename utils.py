@@ -1,5 +1,6 @@
 # utils.py
 from qutip import partial_transpose, Qobj, tensor
+from qutip.measurement import measurement_statistics
 from itertools import combinations
 from numpy import argsort
 
@@ -15,8 +16,19 @@ def evolve(rho, oper, direction):
     
     return rho_out
 
-#def permute_qbit_order(qtensor, current_order, new_order):
-    # ---> there is already a permute function for Qobj in QuTip!
+def evolve_measurement(rho, measurement, direction):
+    ops, targets = measurement
+    if direction == 'effect':
+        collapsed_states, probabilities = measurement_statistics(rho, ops, targets=targets)
+        rho_out = sum([p*collapsed_states[c] for c,p in enumerate(probabilities) if collapsed_states[c] is not None])
+                
+    elif direction == 'cause':
+        rho_out = oper.dag() * rho * oper
+    else:
+        raise ValueError("Direction must be 'cause' or 'effect'.")
+    
+    return rho_out
+
 
 def sort_tensor(rho, partial_indices):
     indices = []

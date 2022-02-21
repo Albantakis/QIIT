@@ -4,7 +4,7 @@ from os import system
 import pyphi
 from qutip import Qobj, tensor
 from itertools import combinations
-from utils import entanglement_check_2qubit, evolve, decorrelate_rho, sort_tensor, entanglement_partition
+from utils import entanglement_check_2qubit, evolve, decorrelate_rho, evolve_measurement, sort_tensor, entanglement_partition
 from intrinsic_difference import intrinsic_difference
 from operator import mul
 from functools import reduce
@@ -31,7 +31,10 @@ def extend_mechanism_to_system_size(m_rho, ind_m, system_size):
 
 def evolve_mpart_effect(m_rho, oper):    
     # first evolve, then partition purview
-    p_rho = evolve(m_rho, oper, direction = 'effect')
+    if type(oper) is list:
+        p_rho = evolve_measurement(m_rho, oper, direction = 'effect')
+    else:
+        p_rho = evolve(m_rho, oper, direction = 'effect')
 
     ent_partition = entanglement_partition(p_rho)
     
@@ -41,9 +44,9 @@ def evolve_mpart_effect(m_rho, oper):
     return m_rho, p_rho
 
 
-def evolve_mpart_cause(m_rho, ind_m, oper):
+def evolve_mpart_cause(m_rho, oper):
     # partition mechanism, then evolve parts, and multiple for purview
-    system_size = len(oper.dims[0])
+    system_size = len(m_rho.dims[0])
     ent_partition = entanglement_partition(m_rho)
 
     if len(ent_partition) > 1:
@@ -60,12 +63,7 @@ def evolve_mpart_cause(m_rho, ind_m, oper):
 
     return m_rho, p_rho
 
-def evolve_mpart(m_rho, ind_m, oper, direction):
-    
-    system_size = len(oper.dims[0])
-    
-    m_rho = extend_mechanism_to_system_size(m_rho, ind_m, system_size)
-
+def evolve_mpart(m_rho, ind_m, oper, direction): 
     if direction == 'effect':
         return evolve_mpart_effect(m_rho, oper)
     else: 
@@ -165,6 +163,7 @@ def compute_ces(rho_maxm, oper, direction = 'effect'):
     for mechanism in mechanisms:
         print('m: ', mechanism)
         m_rho = rho_maxm.ptrace(list(mechanism))
+        m_rho = extend_mechanism_to_system_size(m_rho, mechanism, system_size)
         rho_m, rho_maxp = evolve_mpart(m_rho, mechanism, oper, direction)
         phi_max, max_mip, max_state, max_purview = find_mice(rho_m, mechanism, rho_maxp, oper, direction)
         if phi_max > 0:
