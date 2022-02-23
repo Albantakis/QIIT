@@ -6,7 +6,7 @@ from numpy import argsort
 
 # General
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def evolve(rho, oper, direction):
+def evolve_unitary(rho, oper, direction):
     if direction == 'effect':
         rho_out = oper * rho * oper.dag()
     elif direction == 'cause':
@@ -18,7 +18,7 @@ def evolve(rho, oper, direction):
 
 def evolve_cptp(rho, ops, direction):
 
-    return sum([evolve(rho, o, direction) for o in ops])
+    return sum([evolve_unitary(rho, o, direction) for o in ops])
 
 def sort_tensor(rho, partial_indices):
     indices = []

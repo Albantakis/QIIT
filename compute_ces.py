@@ -4,7 +4,7 @@ from os import system
 import pyphi
 from qutip import Qobj, tensor
 from itertools import combinations
-from utils import evolve, evolve_cptp, decorrelate_rho, sort_tensor, entanglement_partition
+from utils import evolve_unitary, evolve_cptp, decorrelate_rho, sort_tensor, entanglement_partition
 from intrinsic_difference import intrinsic_difference
 from operator import mul
 from functools import reduce
@@ -33,6 +33,8 @@ def evolve_mpart_effect(m_rho, oper):
     # first evolve, then partition purview
     if type(oper) is list:
         evolve = evolve_cptp
+    else: 
+        evolve = evolve_unitary
         
     #     p_rho = evolve_cptp(m_rho, oper, direction = 'effect')
     # else:
@@ -53,6 +55,8 @@ def evolve_mpart_cause(m_rho, oper):
 
     if type(oper) is list:
         evolve = evolve_cptp
+    else: 
+        evolve = evolve_unitary
 
     if len(ent_partition) > 1:
         p_rho_parts = []
