@@ -11,6 +11,8 @@ from functools import reduce
 
 rho_mm = Qobj([[0.5, 0.],[0., 0.5]])
 
+# rho_p: \pi product distribution (cause/effect repertoire)
+# p_rho: p^Z\m no product
 
 # cause and effect repertoires 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,26 +31,27 @@ def extend_mechanism_to_system_size(m_rho, ind_m, system_size):
     
     return m_rho
 
-def evolve_mpart_effect(m_rho, oper):    
+def evolve_mpart_effect(m_rho, oper, purview):    
     # first evolve, then partition purview
     if type(oper) is list:
         evolve = evolve_cptp
     else: 
         evolve = evolve_unitary
         
-    #     p_rho = evolve_cptp(m_rho, oper, direction = 'effect')
-    # else:
     p_rho = evolve(m_rho, oper, direction = 'effect')
 
     ent_partition = entanglement_partition(p_rho)
     
     if len(ent_partition) > 1:
-        p_rho = decorrelate_rho(p_rho, ent_partition)
+        rho_p = decorrelate_rho(p_rho, ent_partition)
+    else:
+        rho_p = p_rho
     
-    return m_rho, p_rho
+    # do partial trace to get purview elements                   
+    return rho_p.ptrace(list(purview))
 
 
-def evolve_mpart_cause(m_rho, oper):
+def evolve_mpart_cause(m_rho, oper, purview):
     # partition mechanism, then evolve parts, and multiple for purview
     system_size = len(m_rho.dims[0])
     ent_partition = entanglement_partition(m_rho)
@@ -63,20 +66,21 @@ def evolve_mpart_cause(m_rho, oper):
         for part in ent_partition:
             m_rho_part = m_rho.ptrace(list(part))
             m_rho_part = extend_mechanism_to_system_size(m_rho_part, part, system_size)
-            p_rho_part = evolve(m_rho_part, oper, direction='cause')
+            # do partial trace here to get only the actual purview elements
+            p_rho_part = evolve(m_rho_part, oper, direction='cause').ptrace(list(purview))
             p_rho_parts.append(p_rho_part)
 
-        p_rho = reduce(mul, p_rho_parts, 1).unit()
+        rho_p = reduce(mul, p_rho_parts, 1).unit()
     else:
-        p_rho = evolve(m_rho, oper, direction='cause')
+        rho_p = evolve(m_rho, oper, direction='cause').ptrace(list(purview))
+    
+    return rho_p
 
-    return m_rho, p_rho
-
-def evolve_mpart(m_rho, oper, direction): 
+def evolve_mpart(m_rho, oper, direction, purview): 
     if direction == 'effect':
-        return evolve_mpart_effect(m_rho, oper)
+        return evolve_mpart_effect(m_rho, oper, purview)
     else: 
-        return evolve_mpart_cause(m_rho, oper)
+        return evolve_mpart_cause(m_rho, oper, purview)
 
 
 # find mip (for a mechanism purview pair)
@@ -104,11 +108,9 @@ def find_mip(rho_m, ind_m, rho_p, ind_p, oper, direction = 'effect'):
             else:
                 if len(part.purview) > 0: 
                     m_rho = rho_m.ptrace(list(part.mechanism))
-                    # send all mechanisms into evolve_mpart_2qubit for causal marginalization
                     m_rho = extend_mechanism_to_system_size(m_rho, part.mechanism, system_size)
-                    _, p_rho = evolve_mpart(m_rho, oper, direction)
-                    # do partial trace to get purview elements
-                    p_rho = p_rho.ptrace(part.purview)
+                    p_rho = evolve_mpart(m_rho, oper, direction, part.purview)
+                    
                     p_rho_parts.append(p_rho)
                     parts_ind.append(part.purview)
 
@@ -136,9 +138,10 @@ def find_mip(rho_m, ind_m, rho_p, ind_p, oper, direction = 'effect'):
 
 # find purview (for a mechanism)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def find_mice(rho_m, ind_m, rho_maxp, oper, direction = 'effect'):
-    # rho_m is density matrix of system size properly extended
-    purviews = pyphi.utils.powerset(range(len(rho_maxp.dims[0])), nonempty=True)
+def find_mice(m_rho, ind_m, oper, direction = 'effect'):
+    # m_rho is density matrix of system size properly extended
+    system_size = len(m_rho.dims[0])
+    purviews = pyphi.utils.powerset(range(system_size), nonempty=True)
 
     phi_max = 0.
     max_purview = []
@@ -146,8 +149,8 @@ def find_mice(rho_m, ind_m, rho_maxp, oper, direction = 'effect'):
     max_state = []
 
     for purview in purviews:
-        rho_p = rho_maxp.ptrace(list(purview))
-        phi_mip, mip, p_state = find_mip(rho_m, ind_m, rho_p, purview, oper, direction = direction)
+        rho_p = evolve_mpart(m_rho, oper, direction, purview)
+        phi_mip, mip, p_state = find_mip(m_rho, ind_m, rho_p, purview, oper, direction = direction)
         print('p: ', purview, ' phi: ', phi_mip)
 
         if phi_max < phi_mip:
@@ -155,7 +158,8 @@ def find_mice(rho_m, ind_m, rho_maxp, oper, direction = 'effect'):
             max_mip = mip
             max_state = p_state
             max_purview = purview
-        elif phi_max == phi_mip and len(purview) > len(max_purview):
+        elif phi_max == phi_mip and len(purview) < len(max_purview):
+            # Todo: use pyphi config to choose smaller purview?
             phi_max = phi_mip
             max_mip = mip
             max_state = p_state
@@ -175,8 +179,8 @@ def compute_ces(rho_maxm, oper, direction = 'effect'):
         print('m: ', mechanism)
         m_rho = rho_maxm.ptrace(list(mechanism))
         m_rho = extend_mechanism_to_system_size(m_rho, mechanism, system_size)
-        rho_m, rho_maxp = evolve_mpart(m_rho, oper, direction)
-        phi_max, max_mip, max_state, max_purview = find_mice(rho_m, mechanism, rho_maxp, oper, direction)
+        
+        phi_max, max_mip, max_state, max_purview = find_mice(m_rho, mechanism, oper, direction)
         if phi_max > 0:
             distinction = {'mech': mechanism, 'purview': max_purview, 'phi': phi_max, 'mip': max_mip, 'state': max_state}
             ces.append(distinction)
