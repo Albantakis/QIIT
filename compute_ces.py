@@ -5,7 +5,7 @@ import pyphi
 from qutip import Qobj, tensor
 from itertools import combinations
 from utils import evolve_unitary, evolve_cptp, decorrelate_rho, sort_tensor, entanglement_partition
-from intrinsic_difference import intrinsic_difference
+from intrinsic_difference_Barbosa2020 import intrinsic_difference
 from operator import mul
 from functools import reduce
 
