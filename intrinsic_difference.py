@@ -4,12 +4,12 @@
 from qutip import *
 
 from qutip.sparse import sp_eigs
-from numpy import e, real, around, inf, prod
+from numpy import e, real, around, inf
 from numpy.lib.scimath import log, log2
 
 from numpy import conj, e, inf, imag, inner, real
 from numpy.lib.scimath import log, log2
-from qutip.states import ket2dm, maximally_mixed_dm
+from qutip.states import ket2dm
 from qutip.sparse import sp_eigs
 
 def intrinsic_difference(rho, sigma, base=2, sparse=False, tol=1e-12, debug = False):
