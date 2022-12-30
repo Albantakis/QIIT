@@ -4,12 +4,12 @@
 from qutip import *
 
 from qutip.sparse import sp_eigs
-from numpy import e, real, around, inf
+from numpy import e, real, around, inf, prod
 from numpy.lib.scimath import log, log2
 
 from numpy import conj, e, inf, imag, inner, real
 from numpy.lib.scimath import log, log2
-from qutip.states import ket2dm
+from qutip.states import ket2dm, maximally_mixed_dm
 from qutip.sparse import sp_eigs
 
 def intrinsic_difference(rho, sigma, base=2, sparse=False, tol=1e-12, debug = False):
@@ -89,13 +89,20 @@ def intrinsic_difference(rho, sigma, base=2, sparse=False, tol=1e-12, debug = Fa
     rvals, rvecs = sp_eigs(rho.data, rho.isherm, vecs=True, sparse=sparse)
     if any(abs(imag(rvals)) >= tol):
         raise ValueError("Input rho has non-real eigenvalues.")
+    
     rvals = real(rvals)
+    #rvals = around(real(rvals), 12)    
 
     svals, svecs = sp_eigs(sigma.data, sigma.isherm, vecs=True, sparse=sparse)
     if any(abs(imag(svals)) >= tol):
         raise ValueError("Input sigma has non-real eigenvalues.")
     svals = real(svals)
     
+    #Only evaluate those with max information before partition
+    rvals_maxent = abs(rvals - 1/len(rvals))
+    max_rval = max(rvals_maxent)
+    max_rval_ind = [i for i,j in enumerate(rvals_maxent) if abs(j - max_rval) <= tol]
+    print(max_rval_ind)
 
     # Calculate inner products of eigenvectors and return +inf if kernel
     # of sigma overlaps with support of rho.
@@ -108,8 +115,8 @@ def intrinsic_difference(rho, sigma, base=2, sparse=False, tol=1e-12, debug = Fa
     nzrvals = rvals[abs(rvals) >= tol]
     
     # Calculate QID  
-    QID_all = [abs(r * (log_base(r) - P[i] @ log_base(svals))) for i,r in enumerate(rvals) if abs(r) >=tol]
-    r_vecs = [rvecs[i] for i,r in enumerate(rvals) if abs(r) >=tol]
+    QID_all = [r * (log_base(r) - P[i] @ log_base(svals)) for i,r in enumerate(rvals) if abs(r) >=tol and i in max_rval_ind]
+    r_vecs = [rvecs[i] for i,r in enumerate(rvals) if abs(r) >=tol and i in max_rval_ind]
 
     if debug:
         print("rvals: ", rvals)
@@ -127,7 +134,7 @@ def intrinsic_difference(rho, sigma, base=2, sparse=False, tol=1e-12, debug = Fa
 
     QID = max(QID_all)
     max_vecs = [r_vecs[i] for i, j in enumerate(QID_all) if abs(j - max(QID_all)) < tol]
-    
+
     # the quantum relative entropy is guaranteed to be >= 0, so we clamp the
     # calculated value to 0 to avoid small violations of the lower bound.
     return around(max(0, QID), 6), max_vecs
