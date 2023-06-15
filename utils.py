@@ -6,6 +6,14 @@ from numpy import argsort
 
 # General
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def print_QIIT_results(results):
+    for r in results:
+        print('mechanism: ', r['mech'], '; purview: ', r['purview'], '; phi = ', r['phi'])
+        print('mip: ')
+        print(r['mip'])
+        print([Qobj(s) for s in r['state']])
+        print('')
+
 def evolve_unitary(rho, oper, direction):
     if direction == 'effect':
         rho_out = oper * rho * oper.dag()

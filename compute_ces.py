@@ -5,7 +5,7 @@ import pyphi
 from qutip import Qobj, tensor
 from itertools import combinations
 from utils import evolve_unitary, evolve_cptp, decorrelate_rho, sort_tensor, entanglement_partition
-from intrinsic_difference import intrinsic_difference
+from intrinsic_difference_Barbosa2020 import intrinsic_difference
 from operator import mul
 from functools import reduce
 
@@ -93,6 +93,7 @@ def find_mip(rho_m, ind_m, rho_p, ind_p, oper, direction = 'effect'):
     system_size = len(rho_m.dims[0])
     partitions = pyphi.partition.mip_partitions(ind_m, ind_p)
     phi_mip = float("inf")
+    phi_mip_norm = float("inf")
     state = []
     
     for partition in partitions:
@@ -128,7 +129,10 @@ def find_mip(rho_m, ind_m, rho_p, ind_p, oper, direction = 'effect'):
         if phi == 0:
             return 0, partition, state
 
-        if phi < phi_mip:
+        phi_norm = phi * pyphi.models.mechanism.normalization_factor(partition)
+
+        if phi_norm < phi_mip_norm:
+            phi_mip_norm = phi_norm
             phi_mip = phi
             mip = partition
             p_state = state
@@ -158,8 +162,8 @@ def find_mice(m_rho, ind_m, oper, direction = 'effect'):
             max_mip = mip
             max_state = p_state
             max_purview = purview
-        elif phi_max == phi_mip and len(purview) < len(max_purview):
-            # Todo: use pyphi config to choose smaller purview?
+        # choose larger purview in case of ties
+        elif phi_max == phi_mip and len(purview) > len(max_purview):
             phi_max = phi_mip
             max_mip = mip
             max_state = p_state
